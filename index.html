@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protótipo Duolingo</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --duo-green:#58CC02;--duo-green-dark:#46A302;--duo-green-light:#D7FFB8;
+    --duo-blue:#1CB0F6;--duo-blue-dark:#0A91D1;--duo-blue-light:#DDF4FF;
+    --duo-purple:#CE82FF;--duo-purple-dark:#A560E8;--duo-purple-light:#F1DBFF;
+    --duo-yellow:#FFDD00;--duo-yellow-dark:#E5C200;
+    --duo-orange:#FF9600;--duo-red:#FF4B4B;
+    --bg:#F7F7F7;--white:#FFFFFF;--gray1:#AFAFAF;--gray2:#E5E5E5;--gray3:#4B4B4B;
+    --shadow:0 2px 0 rgba(0,0,0,0.15);--shadow-card:0 4px 12px rgba(0,0,0,0.08);
+  }
+  body{font-family:'Nunito',sans-serif;background:var(--white);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;}
+  .phone{width:100vw;height:100vh;min-height:100vh;background:var(--white);overflow:hidden;position:relative;}
+  .screen{position:absolute;top:0;left:0;width:100%;height:100%;display:none;flex-direction:column;background:var(--white);overflow:hidden;}
+  .screen.active{display:flex;}
+
+  .screen-inner{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+  .screen-inner::-webkit-scrollbar{display:none;}
+
+  /* STATUS BAR */
+  .status-bar{height:44px;background:var(--white);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;border-bottom:1px solid var(--gray2);}
+  .status-bar .time{font-weight:700;font-size:15px;color:var(--gray3);}
+  .status-icons{display:flex;gap:6px;align-items:center;}
+  .status-icons span{font-size:13px;font-weight:700;color:var(--gray3);}
+
+  /* TOP NAV */
+  .top-nav{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--white);flex-shrink:0;}
+  .top-nav .flag{font-size:28px;}
+  .top-nav .nav-stats{display:flex;gap:16px;align-items:center;}
+  .stat-badge{display:flex;align-items:center;gap:5px;font-size:14px;font-weight:800;color:var(--gray3);}
+  .stat-badge .icon{font-size:18px;}
+
+  /* SECTION LABEL */
+  .section-label{margin:20px 20px 0;background:var(--duo-blue);color:var(--white);border-radius:16px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+  .section-label h2{font-size:15px;font-weight:800;color:var(--white);}
+  .section-label p{font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);margin-top:2px;}
+  .section-label .section-icon{font-size:32px;}
+
+  /* LESSON PATH */
+  .lesson-path{padding:16px 0 24px;display:flex;flex-direction:column;align-items:center;gap:0;}
+  .path-row{display:flex;justify-content:center;align-items:center;width:100%;margin:4px 0;}
+  .lesson-node{width:68px;height:68px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;box-shadow:0 4px 0 rgba(0,0,0,0.2);}
+  .lesson-node.done{background:var(--duo-green);}
+  .lesson-node.active{background:var(--duo-yellow);animation:pulse 2s infinite;}
+  .lesson-node.locked{background:var(--gray2);box-shadow:0 4px 0 rgba(0,0,0,0.1);}
+  .lesson-node.locked .node-icon{filter:grayscale(1);opacity:0.5;}
+  @keyframes pulse{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,0.2);}50%{box-shadow:0 4px 0 rgba(0,0,0,0.2),0 0 0 8px rgba(255,221,0,0.2);}}
+  .node-icon{font-size:28px;}
+  .crown{position:absolute;top:-10px;font-size:14px;}
+
+  /* START BTN */
+  .start-btn{margin:0 20px 0;background:var(--duo-yellow);border:none;border-radius:16px;padding:14px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;color:#3c2200;box-shadow:0 4px 0 var(--duo-yellow-dark);cursor:pointer;transition:transform 0.1s;width:calc(100% - 40px);flex-shrink:0;}
+  .start-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--duo-yellow-dark);}
+
+  /* BOTTOM NAV */
+  .bottom-nav{height:70px;background:var(--white);border-top:1px solid var(--gray2);display:flex;align-items:center;flex-shrink:0;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:8px 0;transition:all 0.15s;border:none;background:none;font-family:'Nunito',sans-serif;}
+  .nav-item .nav-icon{font-size:22px;}
+  .nav-item .nav-label{font-size:10px;font-weight:700;color:var(--gray1);}
+  .nav-item.active .nav-label{color:var(--duo-blue);}
+  .nav-item.active .nav-icon{filter:none;}
+
+  /* === TELA 2: MODO TREINO === */
+  .train-header{padding:20px 20px 16px;background:var(--duo-purple);flex-shrink:0;}
+  .train-header .back-btn{background:none;border:none;cursor:pointer;font-size:22px;color:var(--white);padding:0;font-family:'Nunito',sans-serif;margin-bottom:12px;display:block;}
+  .train-header h1{font-size:24px;font-weight:900;color:var(--white);}
+  .train-header p{font-size:13px;color:rgba(255,255,255,0.85);font-weight:600;margin-top:4px;}
+  .train-header .header-emoji{font-size:48px;float:right;margin-top:-8px;}
+
+  .train-section{padding:18px 20px 0;}
+  .train-section h3{font-size:14px;font-weight:800;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+  .train-types{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .train-type-card{background:var(--white);border:2px solid var(--gray2);border-radius:18px;padding:16px 14px;cursor:pointer;transition:all 0.15s;text-align:left;}
+  .train-type-card:active,.train-type-card.sel{border-color:var(--duo-purple);background:var(--duo-purple-light);}
+  .train-type-card .tt-icon{font-size:28px;margin-bottom:8px;display:block;}
+  .train-type-card .tt-name{font-size:13px;font-weight:800;color:var(--gray3);}
+  .train-type-card .tt-desc{font-size:11px;font-weight:600;color:var(--gray1);margin-top:2px;}
+
+  .units-list{display:flex;flex-direction:column;gap:8px;padding-bottom:24px;}
+  .unit-row{background:var(--white);border:2px solid var(--gray2);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s;}
+  .unit-row:active{border-color:var(--duo-purple);background:var(--duo-purple-light);}
+  .unit-row .unit-emoji{font-size:24px;flex-shrink:0;}
+  .unit-row .unit-info{flex:1;}
+  .unit-row .unit-name{font-size:14px;font-weight:800;color:var(--gray3);}
+  .unit-row .unit-prog{font-size:12px;font-weight:600;color:var(--gray1);margin-top:1px;}
+  .unit-row .prog-bar{height:4px;background:var(--gray2);border-radius:4px;margin-top:6px;overflow:hidden;}
+  .unit-row .prog-fill{height:100%;background:var(--duo-purple);border-radius:4px;}
+  .unit-row .unit-arrow{font-size:16px;color:var(--gray1);}
+  .train-cta{margin:0 20px;background:var(--duo-purple);border:none;border-radius:16px;padding:14px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;color:var(--white);box-shadow:0 4px 0 var(--duo-purple-dark);cursor:pointer;transition:transform 0.1s;width:calc(100% - 40px);flex-shrink:0;margin-bottom:16px;}
+  .train-cta:active{transform:translateY(2px);box-shadow:0 2px 0 var(--duo-purple-dark);}
+
+  .free-badge{background:var(--duo-green-light);border:2px solid var(--duo-green);border-radius:12px;padding:10px 16px;margin:0 20px;display:flex;align-items:center;gap:8px;flex-shrink:0;margin-bottom:16px;}
+  .free-badge .fb-icon{font-size:20px;}
+  .free-badge p{font-size:12px;font-weight:700;color:var(--duo-green-dark);}
+
+  /* === TELA 3: LIÇÃO === */
+  .lesson-header{padding:16px 20px;background:var(--white);display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid var(--gray2);}
+  .lesson-header .close-btn{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray1);padding:0;font-family:'Nunito',sans-serif;}
+  .progress-bar-outer{flex:1;height:16px;background:var(--gray2);border-radius:8px;overflow:hidden;}
+  .progress-bar-fill{height:100%;background:var(--duo-green);border-radius:8px;transition:width 0.5s ease;}
+  .lesson-lives{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:800;color:var(--duo-red);}
+
+  .lesson-body{flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:20px;overflow:hidden;}
+  .lesson-prompt-label{font-size:13px;font-weight:800;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;}
+  .lesson-question{background:var(--duo-blue-light);border-radius:20px;padding:20px;display:flex;align-items:flex-start;gap:14px;}
+  .owl-avatar{width:48px;height:48px;background:var(--duo-green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .lesson-question p{font-size:18px;font-weight:700;color:var(--gray3);line-height:1.4;}
+
+  .options-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .option-btn{background:var(--white);border:2px solid var(--gray2);border-radius:16px;padding:16px 12px;cursor:pointer;text-align:center;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--gray3);transition:all 0.15s;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .option-btn .opt-word{font-size:20px;}
+  .option-btn .opt-meaning{font-size:12px;color:var(--gray1);}
+  .option-btn.selected{border-color:var(--duo-blue);background:var(--duo-blue-light);color:var(--duo-blue-dark);}
+  .option-btn.correct{border-color:var(--duo-green);background:var(--duo-green-light);color:var(--duo-green-dark);}
+  .option-btn.wrong{border-color:var(--duo-red);background:#FFE0E0;color:var(--duo-red);}
+  .option-btn:not(.selected):not(.correct):not(.wrong):active{border-color:var(--duo-blue);background:var(--duo-blue-light);}
+
+  .lesson-footer{padding:16px 20px;background:var(--white);flex-shrink:0;}
+  .check-btn{background:var(--gray2);border:none;border-radius:16px;padding:16px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;color:var(--gray1);width:100%;cursor:pointer;transition:all 0.2s;}
+  .check-btn.ready{background:var(--duo-green);color:var(--white);box-shadow:0 4px 0 var(--duo-green-dark);}
+  .check-btn.ready:active{transform:translateY(2px);box-shadow:0 2px 0 var(--duo-green-dark);}
+
+  .feedback-bar{border-radius:16px;padding:16px;margin-bottom:12px;display:none;}
+  .feedback-bar.correct-fb{background:var(--duo-green-light);border:2px solid var(--duo-green);display:flex;align-items:center;gap:10px;}
+  .feedback-bar.wrong-fb{background:#FFE0E0;border:2px solid var(--duo-red);display:flex;align-items:center;gap:10px;}
+  .fb-text{font-size:14px;font-weight:700;}
+  .fb-text .fb-title{font-size:16px;font-weight:900;}
+  .correct-fb .fb-text{color:var(--duo-green-dark);}
+  .wrong-fb .fb-text{color:var(--duo-red);}
+
+  /* COMPLETE SCREEN */
+  .complete-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:20px;}
+  .complete-screen .big-emoji{font-size:80px;}
+  .complete-screen h2{font-size:28px;font-weight:900;color:var(--gray3);text-align:center;}
+  .complete-screen p{font-size:16px;font-weight:600;color:var(--gray1);text-align:center;}
+  .stats-row{display:flex;gap:12px;width:100%;}
+  .stat-box{flex:1;background:var(--bg);border-radius:16px;padding:16px;text-align:center;}
+  .stat-box .sb-icon{font-size:24px;}
+  .stat-box .sb-val{font-size:22px;font-weight:900;color:var(--gray3);display:block;margin-top:4px;}
+  .stat-box .sb-label{font-size:11px;font-weight:700;color:var(--gray1);}
+  .continue-btn{background:var(--duo-green);border:none;border-radius:16px;padding:16px 32px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;color:var(--white);box-shadow:0 4px 0 var(--duo-green-dark);cursor:pointer;width:100%;transition:transform 0.1s;}
+  .continue-btn:active{transform:translateY(2px);box-shadow:0 2px 0 var(--duo-green-dark);}
+
+  /* === TELA 4: PROGRESSO === */
+  .prog-header{padding:20px 20px 24px;background:linear-gradient(135deg,#58CC02,#46A302);flex-shrink:0;}
+  .prog-header h1{font-size:24px;font-weight:900;color:var(--white);}
+  .prog-header p{font-size:13px;color:rgba(255,255,255,0.9);font-weight:600;margin-top:4px;}
+  .prog-header .header-row{display:flex;justify-content:space-between;align-items:flex-start;}
+  .prog-header .header-emoji{font-size:42px;}
+
+  .overall-card{margin:-16px 20px 0;background:var(--white);border-radius:20px;padding:18px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:14px;position:relative;z-index:2;}
+  .overall-ring{width:64px;height:64px;border-radius:50%;background:conic-gradient(var(--duo-green) 0% 62%, var(--gray2) 62% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .overall-ring-inner{width:52px;height:52px;border-radius:50%;background:var(--white);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:var(--gray3);}
+  .overall-info h3{font-size:15px;font-weight:900;color:var(--gray3);}
+  .overall-info p{font-size:12px;font-weight:600;color:var(--gray1);margin-top:2px;}
+
+  .prog-section{padding:20px 20px 0;}
+  .prog-section h3{font-size:13px;font-weight:800;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+
+  .skill-card{background:var(--white);border:2px solid var(--gray2);border-radius:18px;padding:16px;margin-bottom:12px;}
+  .skill-card .sk-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .skill-card .sk-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .skill-card.read .sk-icon{background:var(--duo-blue-light);}
+  .skill-card.speak .sk-icon{background:var(--duo-purple-light);}
+  .skill-card.write .sk-icon{background:var(--duo-green-light);}
+  .skill-card .sk-info{flex:1;}
+  .skill-card .sk-name{font-size:15px;font-weight:900;color:var(--gray3);}
+  .skill-card .sk-level{font-size:12px;font-weight:700;color:var(--gray1);margin-top:1px;}
+  .skill-card .sk-pct{font-size:18px;font-weight:900;color:var(--gray3);}
+  .skill-card .sk-bar{height:10px;background:var(--gray2);border-radius:5px;overflow:hidden;}
+  .skill-card .sk-fill{height:100%;border-radius:5px;transition:width 0.5s ease;}
+  .skill-card.read .sk-fill{background:var(--duo-blue);}
+  .skill-card.speak .sk-fill{background:var(--duo-purple);}
+  .skill-card.write .sk-fill{background:var(--duo-green);}
+  .skill-card .sk-foot{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;font-weight:700;color:var(--gray1);}
+  .skill-card .sk-foot b{color:var(--gray3);font-weight:900;}
+
+  /* === TELA MODO-SELECT === */
+  .mode-header{padding:20px 20px 28px;background:linear-gradient(135deg,#CE82FF,#9E4DDC);flex-shrink:0;}
+  .mode-header h1{font-size:24px;font-weight:900;color:var(--white);}
+  .mode-header p{font-size:13px;color:rgba(255,255,255,0.9);font-weight:600;margin-top:4px;}
+  .mode-header .header-row{display:flex;justify-content:space-between;align-items:flex-start;}
+  .mode-header .header-emoji{font-size:42px;}
+
+  .mode-theme-badge{margin:-16px 20px 0;background:var(--white);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:12px;position:relative;z-index:2;}
+  .mode-theme-badge .mt-emoji{font-size:28px;}
+  .mode-theme-badge .mt-info{flex:1;}
+  .mode-theme-badge .mt-label{font-size:11px;font-weight:700;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;}
+  .mode-theme-badge .mt-name{font-size:15px;font-weight:900;color:var(--gray3);margin-top:1px;}
+
+  .mode-section{padding:20px;}
+  .mode-section h3{font-size:13px;font-weight:800;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+
+  .mode-card{background:var(--white);border:2px solid var(--gray2);border-radius:18px;padding:16px;margin-bottom:12px;cursor:pointer;transition:transform 0.12s;}
+  .mode-card:active{transform:scale(0.98);}
+  .mode-card.normal{border-color:var(--duo-green);}
+  .mode-card.hard{border-color:var(--duo-red);}
+  .mode-card .mc-head{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .mode-card .mc-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .mode-card.normal .mc-icon{background:var(--duo-green-light);}
+  .mode-card.hard .mc-icon{background:#FFE5E5;}
+  .mode-card .mc-title{font-size:16px;font-weight:900;color:var(--gray3);}
+  .mode-card .mc-tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;}
+  .mode-card.normal .mc-tag{background:var(--duo-green-light);color:var(--duo-green-dark);}
+  .mode-card.hard .mc-tag{background:#FFE5E5;color:var(--duo-red);}
+  .mode-card .mc-list{list-style:none;padding:0;margin:0;}
+  .mode-card .mc-list li{font-size:13px;font-weight:600;color:var(--gray3);padding:4px 0;display:flex;align-items:center;gap:8px;}
+  .mode-card .mc-list li .bullet{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .mode-card.normal .mc-list li .bullet{background:var(--duo-green);}
+  .mode-card.hard .mc-list li .bullet{background:var(--duo-red);}
+
+  /* === EXERCÍCIO DE FALA === */
+  .speak-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+  .speak-phrase{background:var(--white);border:2px solid var(--gray2);border-radius:18px;padding:20px;margin-bottom:30px;text-align:center;width:100%;}
+  .speak-phrase .sp-label{font-size:11px;font-weight:800;color:var(--gray1);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+  .speak-phrase .sp-text{font-size:22px;font-weight:900;color:var(--gray3);line-height:1.3;}
+  .speak-phrase .sp-pt{font-size:13px;font-weight:600;color:var(--gray1);margin-top:8px;font-style:italic;}
+  .mic-btn{width:120px;height:120px;border-radius:50%;background:var(--duo-purple);border:none;box-shadow:0 6px 0 #7030C0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:52px;transition:transform 0.12s;}
+  .mic-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #7030C0;}
+  .mic-btn.recording{background:var(--duo-red);box-shadow:0 6px 0 #C22D3F;animation:pulse 1s infinite;}
+  .mic-hint{font-size:13px;font-weight:700;color:var(--gray1);margin-top:16px;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ============ TELA 1: HOME ============ -->
+  <div class="screen active" id="screen-home">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons"><span>●●●</span><span>WiFi</span><span>⬛</span></div>
+    </div>
+    <div class="top-nav">
+      <span class="flag">🦉</span>
+      <div class="nav-stats"></div>
+    </div>
+
+    <div class="screen-inner">
+      <div class="section-label" style="background:linear-gradient(135deg,#1CB0F6,#0A91D1);">
+        <div>
+          <h2>Seção 1 — Noções Básicas</h2>
+          <p>Aprenda frases simples</p>
+        </div>
+        <span class="section-icon">📖</span>
+      </div>
+
+      <div class="lesson-path">
+        <div class="path-row" style="justify-content:center;">
+          <div class="lesson-node done"><span class="node-icon">⭐</span></div>
+        </div>
+        <div class="path-row" style="justify-content:flex-end;padding-right:60px;">
+          <div class="lesson-node done"><span class="node-icon">🍎</span></div>
+        </div>
+        <div class="path-row" style="justify-content:center;">
+          <div class="lesson-node done"><span class="node-icon">🏠</span></div>
+        </div>
+        <div class="path-row" style="justify-content:flex-start;padding-left:60px;">
+          <div class="lesson-node active"><span class="node-icon">👋</span></div>
+        </div>
+        <div class="path-row" style="justify-content:center;">
+          <div class="lesson-node locked"><span class="node-icon" style="opacity:0.4">📝</span></div>
+        </div>
+        <div class="path-row" style="justify-content:flex-end;padding-right:60px;">
+          <div class="lesson-node locked"><span class="node-icon" style="opacity:0.4">🎯</span></div>
+        </div>
+      </div>
+
+      <div style="margin:0 20px 8px;background:linear-gradient(135deg,#FF9600,#E5850A);border-radius:16px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <p style="font-size:13px;font-weight:800;color:rgba(255,255,255,0.85);">Novo!</p>
+          <h2 style="font-size:15px;font-weight:900;color:white;">Modo Treino</h2>
+          <p style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);margin-top:2px;">Pratique sem limitações</p>
+        </div>
+        <button onclick="goTo('train')" style="background:white;border:none;border-radius:12px;padding:10px 16px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#E5850A;cursor:pointer;">Explorar →</button>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <button class="start-btn" onclick="startLesson('saudacoes')">INICIAR LIÇÃO</button>
+    <div style="height:10px;flex-shrink:0;"></div>
+
+    <div class="bottom-nav">
+      <button class="nav-item active" onclick="goTo('home')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label" style="color:var(--duo-blue);">INÍCIO</span>
+      </button>
+      <button class="nav-item" onclick="goTo('train')">
+        <span class="nav-icon">💪</span>
+        <span class="nav-label">TREINO</span>
+      </button>
+      <button class="nav-item" onclick="goTo('progress')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">PROGRESSO</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ TELA 2: MODO TREINO ============ -->
+  <div class="screen" id="screen-train">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons"><span>●●●</span><span>WiFi</span><span>⬛</span></div>
+    </div>
+
+    <div class="train-header">
+      <button class="back-btn" onclick="goTo('home')">← Voltar</button>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1>Modo Treino</h1>
+          <p>Pratique à vontade, sem gastar nada</p>
+        </div>
+        <span style="font-size:42px;">💪</span>
+      </div>
+    </div>
+
+    <div class="free-badge">
+      <span class="fb-icon">✅</span>
+      <p>Prática livre e ilimitada — sem diamantes necessários</p>
+    </div>
+
+    <div class="screen-inner">
+      <div class="train-section" style="padding-bottom:16px;">
+        <h3>Escolha um tema</h3>
+        <div class="units-list">
+          <div class="unit-row" onclick="goToLesson('fala')">
+            <span class="unit-emoji">🗣️</span>
+            <div class="unit-info">
+              <div class="unit-name">Fala</div>
+              <div class="unit-prog">10/15 lições</div>
+              <div class="prog-bar"><div class="prog-fill" style="width:66%;"></div></div>
+            </div>
+            <span class="unit-arrow">›</span>
+          </div>
+          <div class="unit-row" onclick="goToLesson('comida')">
+            <span class="unit-emoji">🍎</span>
+            <div class="unit-info">
+              <div class="unit-name">Comida e bebida</div>
+              <div class="unit-prog">8/15 lições</div>
+              <div class="prog-bar"><div class="prog-fill" style="width:53%;"></div></div>
+            </div>
+            <span class="unit-arrow">›</span>
+          </div>
+          <div class="unit-row" onclick="goToLesson('familia')">
+            <span class="unit-emoji">🏠</span>
+            <div class="unit-info">
+              <div class="unit-name">Casa e família</div>
+              <div class="unit-prog">5/15 lições</div>
+              <div class="prog-bar"><div class="prog-fill" style="width:33%;"></div></div>
+            </div>
+            <span class="unit-arrow">›</span>
+          </div>
+          <div class="unit-row" onclick="goToLesson('viagem')">
+            <span class="unit-emoji">🌍</span>
+            <div class="unit-info">
+              <div class="unit-name">Viagem</div>
+              <div class="unit-prog">2/15 lições</div>
+              <div class="prog-bar"><div class="prog-fill" style="width:13%;"></div></div>
+            </div>
+            <span class="unit-arrow">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="goTo('home')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">INÍCIO</span>
+      </button>
+      <button class="nav-item active" onclick="goTo('train')">
+        <span class="nav-icon">💪</span>
+        <span class="nav-label" style="color:var(--duo-blue);">TREINO</span>
+      </button>
+      <button class="nav-item" onclick="goTo('progress')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">PROGRESSO</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ TELA 3: ESCOLHA DE MODO ============ -->
+  <div class="screen" id="screen-mode">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons"><span>●●●</span><span>WiFi</span><span>⬛</span></div>
+    </div>
+
+    <div class="mode-header">
+      <button class="back-btn" onclick="goTo('home')" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--white);padding:0;font-family:'Nunito',sans-serif;margin-bottom:12px;display:block;">← Voltar</button>
+      <div class="header-row">
+        <div>
+          <h1>Escolha o modo</h1>
+          <p>Como você quer jogar essa lição?</p>
+        </div>
+        <span class="header-emoji">⚔️</span>
+      </div>
+    </div>
+
+    <div class="mode-theme-badge">
+      <span class="mt-emoji" id="mode-theme-emoji">👋</span>
+      <div class="mt-info">
+        <div class="mt-label">Tema selecionado</div>
+        <div class="mt-name" id="mode-theme-name">Saudações</div>
+      </div>
+    </div>
+
+    <div class="screen-inner">
+      <div class="mode-section">
+        <h3>Modos disponíveis</h3>
+
+        <div class="mode-card normal" onclick="confirmMode('normal')">
+          <div class="mc-head">
+            <div class="mc-icon">😌</div>
+            <div>
+              <div class="mc-title">Modo Normal</div>
+              <span class="mc-tag">Recomendado</span>
+            </div>
+          </div>
+          <ul class="mc-list">
+            <li><span class="bullet"></span>Ganho padrão de XP (+15 por lição)</li>
+            <li><span class="bullet"></span>Consumo normal de corações</li>
+            <li><span class="bullet"></span>Dificuldade equilibrada</li>
+          </ul>
+        </div>
+
+        <div class="mode-card hard" onclick="confirmMode('hard')">
+          <div class="mc-head">
+            <div class="mc-icon">🔥</div>
+            <div>
+              <div class="mc-title">Modo Rigoroso</div>
+              <span class="mc-tag">Desafio</span>
+            </div>
+          </div>
+          <ul class="mc-list">
+            <li><span class="bullet"></span>XP dobrado (+30 por lição)</li>
+            <li><span class="bullet"></span>Perde 2 corações por erro</li>
+            <li><span class="bullet"></span>Dificuldade aumentada</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TELA 4: LIÇÃO ============ -->
+  <div class="screen" id="screen-lesson">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons"><span>●●●</span><span>WiFi</span><span>⬛</span></div>
+    </div>
+    <div class="lesson-header">
+      <button class="close-btn" onclick="goTo('home')">✕</button>
+      <div class="progress-bar-outer"><div class="progress-bar-fill" id="les-progress" style="width:40%;"></div></div>
+      <div class="lesson-lives" id="les-lives">❤️ 5</div>
+    </div>
+
+    <div id="lesson-question-screen" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <!-- Exercício padrão: múltipla escolha com emojis -->
+      <div class="lesson-body" id="exercise-choice">
+        <p class="lesson-prompt-label" id="les-label">Selecione a tradução correta</p>
+        <div class="lesson-question">
+          <div class="owl-avatar">🦉</div>
+          <p id="les-question">Como se diz "olá" em inglês?</p>
+        </div>
+        <div class="options-grid" id="options-grid">
+          <!-- preenchido dinamicamente pelo JS -->
+        </div>
+      </div>
+
+      <!-- Exercício de fala: pronúncia -->
+      <div class="speak-body" id="exercise-speak" style="display:none;">
+        <p class="lesson-prompt-label" style="margin-bottom:20px;">Fale a frase em inglês</p>
+        <div class="speak-phrase">
+          <div class="sp-label">Diga em voz alta</div>
+          <div class="sp-text" id="sp-text">Hello, how are you?</div>
+          <div class="sp-pt" id="sp-pt">Olá, como vai você?</div>
+        </div>
+        <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+        <p class="mic-hint" id="mic-hint">Toque no microfone para falar</p>
+      </div>
+
+      <div class="lesson-footer">
+        <div class="feedback-bar" id="feedback-bar">
+          <span style="font-size:24px;" id="fb-icon">✅</span>
+          <div class="fb-text"><div class="fb-title" id="fb-title">Ótimo!</div><div id="fb-sub">Resposta correta</div></div>
+        </div>
+        <button class="check-btn" id="check-btn" disabled onclick="checkAnswer()">VERIFICAR</button>
+      </div>
+    </div>
+
+    <div id="lesson-complete-screen" class="complete-screen" style="display:none;">
+      <span class="big-emoji">🎉</span>
+      <h2>Lição completa!</h2>
+      <p>Você arrasou nessa lição</p>
+      <div class="stats-row">
+        <div class="stat-box">
+          <span class="sb-icon">⚡</span>
+          <span class="sb-val">100%</span>
+          <span class="sb-label">Precisão</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-icon">⭐</span>
+          <span class="sb-val">+15 XP</span>
+          <span class="sb-label">Pontos</span>
+        </div>
+        <div class="stat-box">
+          <span class="sb-icon">⏱️</span>
+          <span class="sb-val">1:42</span>
+          <span class="sb-label">Tempo</span>
+        </div>
+      </div>
+      <button class="continue-btn" onclick="goTo('home')">CONTINUAR →</button>
+    </div>
+  </div>
+
+  <!-- ============ TELA 4: PROGRESSO ============ -->
+  <div class="screen" id="screen-progress">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons"><span>●●●</span><span>WiFi</span><span>⬛</span></div>
+    </div>
+
+    <div class="prog-header">
+      <button class="back-btn" onclick="goTo('home')" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--white);padding:0;font-family:'Nunito',sans-serif;margin-bottom:12px;display:block;">← Voltar</button>
+      <div class="header-row">
+        <div>
+          <h1>Seu progresso</h1>
+          <p>Acompanhe sua evolução por habilidade</p>
+        </div>
+        <span class="header-emoji">📊</span>
+      </div>
+    </div>
+
+    <div class="screen-inner">
+      <div class="overall-card">
+        <div class="overall-ring">
+          <div class="overall-ring-inner">62%</div>
+        </div>
+        <div class="overall-info">
+          <h3>Nível Intermediário</h3>
+          <p>Continue assim! Faltam 38% para o próximo nível</p>
+        </div>
+      </div>
+
+      <div class="prog-section">
+        <h3>Habilidades</h3>
+
+        <div class="skill-card read">
+          <div class="sk-head">
+            <div class="sk-icon">📖</div>
+            <div class="sk-info">
+              <div class="sk-name">Leitura</div>
+              <div class="sk-level">Nível 4 · Intermediário</div>
+            </div>
+            <div class="sk-pct">78%</div>
+          </div>
+          <div class="sk-bar"><div class="sk-fill" style="width:78%;"></div></div>
+          <div class="sk-foot">
+            <span><b>156</b> palavras lidas</span>
+            <span><b>+12%</b> esta semana</span>
+          </div>
+        </div>
+
+        <div class="skill-card speak">
+          <div class="sk-head">
+            <div class="sk-icon">🗣️</div>
+            <div class="sk-info">
+              <div class="sk-name">Fala</div>
+              <div class="sk-level">Nível 2 · Iniciante</div>
+            </div>
+            <div class="sk-pct">45%</div>
+          </div>
+          <div class="sk-bar"><div class="sk-fill" style="width:45%;"></div></div>
+          <div class="sk-foot">
+            <span><b>38</b> frases praticadas</span>
+            <span><b>+8%</b> esta semana</span>
+          </div>
+        </div>
+
+        <div class="skill-card write">
+          <div class="sk-head">
+            <div class="sk-icon">✍️</div>
+            <div class="sk-info">
+              <div class="sk-name">Escrita</div>
+              <div class="sk-level">Nível 3 · Intermediário</div>
+            </div>
+            <div class="sk-pct">64%</div>
+          </div>
+          <div class="sk-bar"><div class="sk-fill" style="width:64%;"></div></div>
+          <div class="sk-foot">
+            <span><b>92</b> exercícios feitos</span>
+            <span><b>+15%</b> esta semana</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:20px;"></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" onclick="goTo('home')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">INÍCIO</span>
+      </button>
+      <button class="nav-item" onclick="goTo('train')">
+        <span class="nav-icon">💪</span>
+        <span class="nav-label">TREINO</span>
+      </button>
+      <button class="nav-item active" onclick="goTo('progress')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label" style="color:var(--duo-blue);">PROGRESSO</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============ DADOS DOS EXERCÍCIOS POR TEMA ============
+// Cada tema tem um array de exercícios. Tipo 'choice' = múltipla escolha, 'speak' = pronúncia.
+var THEMES = {
+  saudacoes: {
+    emoji: '👋', name: 'Saudações',
+    exercises: [
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "olá" em inglês?', correctWord:'Hello',
+        options:[{emoji:'👋',word:'Hello',correct:true},{emoji:'👋',word:'Goodbye',correct:false},{emoji:'🌅',word:'Good morning',correct:false},{emoji:'🙏',word:'Thank you',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "bom dia" em inglês?', correctWord:'Good morning',
+        options:[{emoji:'🌙',word:'Good night',correct:false},{emoji:'🌅',word:'Good morning',correct:true},{emoji:'☀️',word:'Good afternoon',correct:false},{emoji:'👋',word:'See you',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "obrigado" em inglês?', correctWord:'Thank you',
+        options:[{emoji:'🙏',word:'Please',correct:false},{emoji:'😊',word:'You are welcome',correct:false},{emoji:'🙏',word:'Thank you',correct:true},{emoji:'🤝',word:'Sorry',correct:false}]}
+    ]
+  },
+  fala: {
+    emoji: '🗣️', name: 'Fala',
+    exercises: [
+      {type:'speak', en:'Hello, how are you?', pt:'Olá, como vai você?'},
+      {type:'speak', en:'Nice to meet you', pt:'Prazer em conhecer você'},
+      {type:'speak', en:'Have a good day', pt:'Tenha um bom dia'}
+    ]
+  },
+  comida: {
+    emoji: '🍎', name: 'Comida e bebida',
+    exercises: [
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "maçã" em inglês?', correctWord:'Apple',
+        options:[{emoji:'🍌',word:'Banana',correct:false},{emoji:'🍎',word:'Apple',correct:true},{emoji:'🍊',word:'Orange',correct:false},{emoji:'🍇',word:'Grape',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "pão" em inglês?', correctWord:'Bread',
+        options:[{emoji:'🧀',word:'Cheese',correct:false},{emoji:'🥖',word:'Bread',correct:true},{emoji:'🥛',word:'Milk',correct:false},{emoji:'🍚',word:'Rice',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "água" em inglês?', correctWord:'Water',
+        options:[{emoji:'☕',word:'Coffee',correct:false},{emoji:'🧃',word:'Juice',correct:false},{emoji:'💧',word:'Water',correct:true},{emoji:'🍷',word:'Wine',correct:false}]}
+    ]
+  },
+  familia: {
+    emoji: '🏠', name: 'Casa e família',
+    exercises: [
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "mãe" em inglês?', correctWord:'Mother',
+        options:[{emoji:'👨',word:'Father',correct:false},{emoji:'👩',word:'Mother',correct:true},{emoji:'👶',word:'Baby',correct:false},{emoji:'👧',word:'Sister',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "irmão" em inglês?', correctWord:'Brother',
+        options:[{emoji:'👦',word:'Brother',correct:true},{emoji:'👴',word:'Grandfather',correct:false},{emoji:'👨',word:'Son',correct:false},{emoji:'👫',word:'Cousin',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "casa" em inglês?', correctWord:'House',
+        options:[{emoji:'🏢',word:'Building',correct:false},{emoji:'🏠',word:'House',correct:true},{emoji:'🚪',word:'Door',correct:false},{emoji:'🪟',word:'Window',correct:false}]}
+    ]
+  },
+  viagem: {
+    emoji: '🌍', name: 'Viagem',
+    exercises: [
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "aeroporto" em inglês?', correctWord:'Airport',
+        options:[{emoji:'🏨',word:'Hotel',correct:false},{emoji:'🚂',word:'Train',correct:false},{emoji:'✈️',word:'Airport',correct:true},{emoji:'🗺️',word:'Map',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "hotel" em inglês?', correctWord:'Hotel',
+        options:[{emoji:'🏨',word:'Hotel',correct:true},{emoji:'🏖️',word:'Beach',correct:false},{emoji:'🏞️',word:'Park',correct:false},{emoji:'🛏️',word:'Bed',correct:false}]},
+      {type:'choice', label:'Selecione a tradução correta', question:'Como se diz "passaporte" em inglês?', correctWord:'Passport',
+        options:[{emoji:'🎫',word:'Ticket',correct:false},{emoji:'🧳',word:'Luggage',correct:false},{emoji:'🛂',word:'Passport',correct:true},{emoji:'💳',word:'Card',correct:false}]}
+    ]
+  }
+};
+
+// ============ ESTADO GLOBAL ============
+var currentTheme='saudacoes';
+var currentMode='normal';
+var currentStep=0;
+var lesState={selected:null,answered:false};
+
+// ============ NAVEGAÇÃO ============
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  if(id==='lesson'){loadExercise();}
+}
+
+// Fluxo "Iniciar Lição" da home → passa pela escolha de modo
+function startLesson(themeKey){
+  currentTheme=themeKey;
+  var t=THEMES[themeKey];
+  document.getElementById('mode-theme-emoji').textContent=t.emoji;
+  document.getElementById('mode-theme-name').textContent=t.name;
+  goTo('mode');
+}
+
+// Fluxo direto (Modo Treino) → vai direto pro exercício, sem escolher modo
+function goToLesson(themeKey){
+  currentTheme=themeKey;
+  currentMode='normal'; // treino é sempre normal
+  currentStep=0;
+  goTo('lesson');
+}
+
+// Confirma modo e começa lição (usado pelo fluxo startLesson)
+function confirmMode(mode){
+  currentMode=mode;
+  currentStep=0;
+  goTo('lesson');
+}
+
+// ============ LIÇÃO ============
+function loadExercise(){
+  var t=THEMES[currentTheme];
+  var ex=t.exercises[currentStep];
+  var total=t.exercises.length;
+
+  // Corações variam conforme o modo
+  var lives=(currentMode==='hard')?3:5;
+  document.getElementById('les-lives').textContent='❤️ '+lives;
+
+  // Barra de progresso: avança conforme o step atual
+  var progress=Math.round(((currentStep)/total)*100);
+  if(progress<15)progress=15; // mostra um pouquinho sempre
+  document.getElementById('les-progress').style.width=progress+'%';
+
+  // Reset do estado do exercício atual
+  lesState={selected:null,answered:false};
+  var fb=document.getElementById('feedback-bar');
+  fb.style.display='none';fb.className='feedback-bar';
+  var cb=document.getElementById('check-btn');
+  cb.disabled=true;cb.textContent='VERIFICAR';cb.className='check-btn';
+  cb.onclick=checkAnswer;
+
+  // Mostra o container certo conforme o tipo
+  document.getElementById('exercise-choice').style.display=(ex.type==='choice')?'flex':'none';
+  document.getElementById('exercise-speak').style.display=(ex.type==='speak')?'flex':'none';
+
+  if(ex.type==='choice'){
+    document.getElementById('les-label').textContent=ex.label;
+    document.getElementById('les-question').textContent=ex.question;
+    var grid=document.getElementById('options-grid');
+    grid.innerHTML='';
+    ex.options.forEach(function(opt){
+      var btn=document.createElement('button');
+      btn.className='option-btn';
+      btn.onclick=function(){selectOption(btn, opt.correct?'correct':'wrong');};
+      btn.innerHTML='<span class="opt-word">'+opt.emoji+'</span><span style="font-size:15px;font-weight:700;">'+opt.word+'</span>';
+      grid.appendChild(btn);
+    });
+  } else if(ex.type==='speak'){
+    document.getElementById('sp-text').textContent=ex.en;
+    document.getElementById('sp-pt').textContent=ex.pt;
+    document.getElementById('mic-btn').className='mic-btn';
+    document.getElementById('mic-btn').textContent='🎤';
+    document.getElementById('mic-hint').textContent='Toque no microfone para falar';
+  }
+
+  // Esconde tela de completo
+  document.getElementById('lesson-question-screen').style.display='flex';
+  document.getElementById('lesson-complete-screen').style.display='none';
+}
+
+function selectOption(btn,type){
+  if(lesState.answered)return;
+  document.querySelectorAll('.option-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  lesState.selected=type;
+  var cb=document.getElementById('check-btn');
+  cb.disabled=false;cb.className='check-btn ready';
+}
+
+// Exercício de fala: simula gravação e libera o botão verificar
+var micRecording=false;
+function toggleMic(){
+  if(lesState.answered)return;
+  var btn=document.getElementById('mic-btn');
+  var hint=document.getElementById('mic-hint');
+  var cb=document.getElementById('check-btn');
+  if(!micRecording){
+    micRecording=true;
+    btn.classList.add('recording');
+    btn.textContent='⏹️';
+    hint.textContent='Gravando... toque para parar';
+  } else {
+    micRecording=false;
+    btn.classList.remove('recording');
+    btn.textContent='✅';
+    hint.textContent='Ótima pronúncia! Toque em verificar';
+    lesState.selected='correct';
+    cb.disabled=false;cb.className='check-btn ready';
+  }
+}
+
+function checkAnswer(){
+  if(!lesState.selected||lesState.answered)return;
+  lesState.answered=true;
+  var isCorrect=(lesState.selected==='correct');
+  var fb=document.getElementById('feedback-bar');
+  var cb=document.getElementById('check-btn');
+  document.querySelectorAll('.option-btn').forEach(b=>{
+    if(b.classList.contains('selected')){
+      b.classList.remove('selected');
+      b.classList.add(isCorrect?'correct':'wrong');
+    }
+  });
+  fb.className='feedback-bar '+(isCorrect?'correct-fb':'wrong-fb');
+  fb.style.display='flex';
+  document.getElementById('fb-icon').textContent=isCorrect?'✅':'❌';
+  document.getElementById('fb-title').textContent=isCorrect?'Ótimo!':'Quase lá!';
+  var ex=THEMES[currentTheme].exercises[currentStep];
+  var correctLabel=ex.type==='choice'?ex.correctWord:ex.en;
+  document.getElementById('fb-sub').textContent=isCorrect?'Resposta correta!':'A resposta certa era: '+correctLabel;
+  cb.textContent='CONTINUAR';
+  cb.className='check-btn ready';
+  cb.onclick=nextExercise;
+}
+
+function nextExercise(){
+  var t=THEMES[currentTheme];
+  currentStep++;
+  if(currentStep>=t.exercises.length){
+    finishLesson();
+  } else {
+    loadExercise();
+  }
+}
+
+function finishLesson(){
+  // XP varia conforme o modo + número de exercícios
+  var totalExercises=THEMES[currentTheme].exercises.length;
+  var xpPerExercise=(currentMode==='hard')?10:5;
+  var xp=totalExercises*xpPerExercise;
+  var xpEl=document.querySelector('#lesson-complete-screen .stat-box:nth-child(2) .sb-val');
+  if(xpEl) xpEl.textContent='+'+xp+' XP';
+  document.getElementById('lesson-question-screen').style.display='none';
+  document.getElementById('lesson-complete-screen').style.display='flex';
+}
+</script>
+
+</body>
+</html>
